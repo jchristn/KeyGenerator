@@ -37,6 +37,14 @@ namespace Generator
         #endregion
 
         #region Public-Methods
+        public enum SequenceStatus
+        {
+            Valid,
+            Homopolymer,
+            GCContent,
+            Folding,
+            Repeats
+        }
 
         /// <summary>
         /// Generate a key.
@@ -70,74 +78,91 @@ namespace Generator
             {
                 attempt++;
                 Logger?.Invoke(_Header + "starting attempt " + attempt);
+                string logPrefix = _Header + attempt + "/" + maxAttempts + ": ";
 
                 // generate random string
                 string str = null;
                 if (allowHomopolymers)
                 {
                     str = RandomString(len);
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": generated random sequence: " + str);
+                    Logger?.Invoke(logPrefix + "generated random sequence: " + str);
                 }
                 else
                 {
                     str = RandomStringWithoutHomopolymers(len);
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": generated random sequence without homopolymers: " + str);
+                    Logger?.Invoke(logPrefix + "generated random sequence without homopolymers: " + str);
                 }
 
-                // check for homopolymers
-                if (HomopolymersExist(str))
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": homopolymers detected");
+                SequenceStatus status = Validate(str, logPrefix, maxGcContent, maxComplementaryBases, minRepetitiveSequenceLength, maxAllowedRepetitions);
+                if (status != SequenceStatus.Valid)
                     continue;
-                }
-                else
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": no homopolymers detected");
-                }
 
-                // check for GC content
-                double gcContent = CalculateGcContent(str);
-                if (gcContent > maxGcContent)
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": GC content threshold exceeded: " + gcContent + "/" + maxGcContent);
-                    continue;
-                }
-                else
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": GC content threshold within tolerance: " + gcContent + "/" + maxGcContent);
-                }
-
-                // check for complementary bases that could lead to folding
-                bool foldPossible = FoldingPotentialExists(str, maxComplementaryBases);
-                if (foldPossible)
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": folding possible with " + maxComplementaryBases + " bases");
-                    continue;
-                }
-                else
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": folding not possible with " + maxComplementaryBases + " bases");
-                }
-
-                // check for repeated patterns
-                bool repeats = IsSequenceRepeated(str, minRepetitiveSequenceLength, maxAllowedRepetitions);
-                if (repeats)
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": excessive repeats detected");
-                    continue;
-                }
-                else
-                {
-                    Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": excessive repeats not detected");
-                }
-
-                Logger?.Invoke(_Header + attempt + "/" + maxAttempts + ": sequence " + str + " passes all checks");
+                Logger?.Invoke(logPrefix + "sequence " + str + " passes all checks");
                 return (str, attempt);
             }
 
             Logger?.Invoke(_Header + "exceeded maximum attempts, could not generate a candidate sequence");
             return (null, attempt);
         }
+        
+        public SequenceStatus Validate(
+            string str,
+            string logPrefix,
+            double maxGcContent = 0.5,
+            int maxComplementaryBases = 8,
+            int minRepetitiveSequenceLength = 3,
+            int maxAllowedRepetitions = 1
+            )
+        {
+            // check for homopolymers
+            if (HomopolymersExist(str))
+            {
+                Logger?.Invoke(logPrefix + "homopolymers detected");
+                return SequenceStatus.Homopolymer;
+            }
+            else
+            {
+                Logger?.Invoke(logPrefix + "no homopolymers detected");
+            }
+
+            // check for GC content
+            double gcContent = CalculateGcContent(str);
+            if (gcContent > maxGcContent)
+            {
+                Logger?.Invoke(logPrefix + "GC content threshold exceeded: " + gcContent + "/" + maxGcContent);
+                return SequenceStatus.GCContent;
+            }
+            else
+            {
+                Logger?.Invoke(logPrefix + "GC content threshold within tolerance: " + gcContent + "/" + maxGcContent);
+            }
+
+            // check for complementary bases that could lead to folding
+            bool foldPossible = FoldingPotentialExists(str, maxComplementaryBases);
+            if (foldPossible)
+            {
+                Logger?.Invoke(logPrefix + "folding possible with " + maxComplementaryBases + " bases");
+                return SequenceStatus.Folding;
+            }
+            else
+            {
+                Logger?.Invoke(logPrefix + "folding not possible with " + maxComplementaryBases + " bases");
+            }
+
+            // check for repeated patterns
+            bool repeats = IsSequenceRepeated(str, minRepetitiveSequenceLength, maxAllowedRepetitions);
+            if (repeats)
+            {
+                Logger?.Invoke(logPrefix + "excessive repeats detected");
+                return SequenceStatus.Repeats;
+            }
+            else
+            {
+                Logger?.Invoke(logPrefix + "excessive repeats not detected");
+            }
+            return SequenceStatus.Valid;
+        }
+
 
         #endregion
 
@@ -270,7 +295,11 @@ namespace Generator
 
                     if (sequenceToCheck == currentSequence) count++;
 
-                    if (count > maxAllowedRepetitions) return true;
+                    if (count > maxAllowedRepetitions)
+                    {
+                        Logger?.Invoke($"Sequence {sequenceToCheck} repeats at least {count} times");
+                        return true;
+                    }
                 }
             }
 
