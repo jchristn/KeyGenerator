@@ -163,7 +163,6 @@ namespace Generator
             return SequenceStatus.Valid;
         }
 
-
         #endregion
 
         #region Private-Methods

@@ -1,11 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<Authors>Joel Christner and Udi Shemer</Authors>
+		<Version>1.0.0</Version>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ClosestString" Version="1.0.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="ClosestString" Version="1.0.1" />
+	</ItemGroup>
 
 </Project>

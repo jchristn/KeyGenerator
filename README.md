@@ -8,6 +8,10 @@ KeyGenerator is a simple application and class library that helps generate keys 
 
 - Initial release
 
+## Authors
+
+This package is authored by @jchristn and @Udi-Shemer.  
+
 ## Version History
 
 Please refer to CHANGELOG.md for details.
