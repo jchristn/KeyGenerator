@@ -286,7 +286,7 @@ namespace Generator
                     count++;
                     if (count > maxAllowedRepetitions)
                     {
-                        Logger?.Invoke($"Sequence {sequenceToCheck} repeats at least {count} times");
+                        Logger?.Invoke(_Header + "sequence " + sequenceToCheck + " repeats at least " + count + " times");
                         return true;
                     }
 
