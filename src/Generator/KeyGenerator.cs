@@ -213,13 +213,9 @@ namespace Generator
 
         private bool HomopolymersExist(string str)
         {
-            for (int i = 0; i < str.Length; i++)
+            for (int i = 1; i < str.Length; i++)
             {
-                if (i == 0) continue;
-                else
-                {
-                    if (str[i] == str[i - 1]) return true;
-                }
+                if (str[i] == str[i - 1]) return true;
             }
 
             return false;
@@ -247,11 +243,7 @@ namespace Generator
                 string sequenceToCheck = str.Substring(i, maxComplementaryBases);
                 string complementaryBases = GetComplementaryBases(sequenceToCheck);
 
-                for (int j = (i + 1); j < (str.Length - maxComplementaryBases); j++)
-                {
-                    string sequenceToTest = str.Substring(j, maxComplementaryBases);
-                    if (complementaryBases.Equals(sequenceToTest)) return true;
-                }
+                if (str.IndexOf(complementaryBases, i + 1) != -1) return true;
             }
 
             return false;
@@ -280,7 +272,7 @@ namespace Generator
             foreach (char c in str) ret += GetComplementaryBase(c);
             return ret;
         }
-
+        
         private bool IsSequenceRepeated(string str, int minRepetitiveSequenceLength, int maxAllowedRepetitions)
         {
             for (int i = 0; i <= str.Length - minRepetitiveSequenceLength * maxAllowedRepetitions; i++)
@@ -288,22 +280,24 @@ namespace Generator
                 string sequenceToCheck = str.Substring(i, minRepetitiveSequenceLength);
                 int count = 0;
 
-                for (int j = i + minRepetitiveSequenceLength; j <= str.Length - minRepetitiveSequenceLength; j += 1)
+                int pos = str.IndexOf(sequenceToCheck, i + minRepetitiveSequenceLength);
+                while (pos != -1)
                 {
-                    string currentSequence = str.Substring(j, minRepetitiveSequenceLength);
-
-                    if (sequenceToCheck == currentSequence) count++;
-
+                    count++;
                     if (count > maxAllowedRepetitions)
                     {
                         Logger?.Invoke($"Sequence {sequenceToCheck} repeats at least {count} times");
                         return true;
                     }
+
+                    pos = str.IndexOf(sequenceToCheck, pos + 1);
                 }
+
             }
 
             return false;
         }
+
     }
 
     #endregion 
