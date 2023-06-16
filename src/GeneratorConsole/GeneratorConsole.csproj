@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Content Remove="C:\Users\joelc\.nuget\packages\inputty\1.0.5\contentFiles\any\net6.0\Inputty.xml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Inputty" Version="1.0.5" />
+		<PackageReference Include="Timestamps" Version="1.0.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Generator\Generator.csproj" />
+	</ItemGroup>
+
+</Project>

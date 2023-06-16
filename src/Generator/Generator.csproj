@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="ClosestString" Version="1.0.1" />
+		<PackageReference Include="WatsonORM" Version="2.1.2" />
 	</ItemGroup>
 
 </Project>

@@ -37,14 +37,6 @@ namespace Generator
         #endregion
 
         #region Public-Methods
-        public enum SequenceStatus
-        {
-            Valid,
-            Homopolymer,
-            GCContent,
-            Folding,
-            Repeats
-        }
 
         /// <summary>
         /// Generate a key.
@@ -298,7 +290,6 @@ namespace Generator
             return false;
         }
 
+        #endregion
     }
-
-    #endregion 
 }

@@ -6,6 +6,7 @@ using System.Linq;
 using DatabaseWrapper;
 using DatabaseWrapper.Core;
 using DatabaseWrapper.Mysql;
+using ExpressionTree;
 using Generator;
 using GetSomeInput;
 using Timestamps;
@@ -16,14 +17,43 @@ namespace Test
     public static class Program
     {
         private static bool _RunForever = true;
-        private static bool _Validate = false;
         private static int _MinimumEditDistance = 10;
         private static KeyGenerator _Generator = new KeyGenerator();
         private static RecordManager _Records = new RecordManager();
         private static KeyValidator _Validator = new KeyValidator();
+        private static WatsonORM _ORM = null;
+
+        private static Func<List<string>> _RetrieveVendors = () =>
+        {
+            Expr eVendor = new Expr
+            {
+                Left = _ORM.GetColumnName<VendorMetadata>(nameof(VendorMetadata.Id)),
+                Operator = OperatorEnum.GreaterThan,
+                Right = 0
+            };
+
+            List<VendorMetadata> vendors = _ORM.SelectMany<VendorMetadata>(eVendor);
+            return vendors.Select(v => v.Key).Distinct().ToList();
+        };
+
+        private static Func<List<string>> _RetrieveCodecs = () =>
+        {
+            Expr eCodec = new Expr
+            {
+                Left = _ORM.GetColumnName<CodecMetadata>(nameof(CodecMetadata.Id)),
+                Operator = OperatorEnum.GreaterThan,
+                Right = 0
+            };
+
+            List<CodecMetadata> codecs = _ORM.SelectMany<CodecMetadata>(eCodec);
+            return codecs.Select(v => v.Key).Distinct().ToList();
+        };
 
         public static void Main(string[] args)
         {
+            InitializeOrm();
+            InitializeRecordsManager();
+
             while (_RunForever)
             {
                 string userInput = Inputty.GetString("Command [?/help]:", null, false);
@@ -54,14 +84,6 @@ namespace Test
                         _MinimumEditDistance = Inputty.GetInteger("Edit distance:", 10, true, false);
                         break;
 
-                    case "validate":
-                        _Validate = Inputty.GetBoolean("Validate generated keys:", true);
-                        break;
-
-                    case "retrieve":
-                        RetrieveRecords();
-                        break;
-
                     case "gen vendor":
                         GenerateVendor();
                         break;
@@ -82,69 +104,47 @@ namespace Test
             Console.WriteLine("  ?             help, e.g. this menu");
             Console.WriteLine("  debug         enable or disable debug logging (currently: " + (_Generator.Logger != null ? "true" : "false") + ")");
             Console.WriteLine("  distance      set minimum edit distance (currently: " + _MinimumEditDistance + ")");
-            Console.WriteLine("  validate      enable or disable validation against stored data (currently: " + _Validate + ")");
-            Console.WriteLine("  retrieve      retrieve records");
             Console.WriteLine("  gen vendor    generate a vendor key sequences");
             Console.WriteLine("  gen codec     generate a CODEC key sequences");
             Console.WriteLine("");
         }
 
-        private static void RetrieveRecords()
+        private static void InitializeOrm()
         {
-            DatabaseClient db = null;
+            string sqliteFilename = Inputty.GetString("Sqlite filename   :", null, true);
 
-            string filename = Inputty.GetString("Sqlite filename   :", null, true);
-            if (!String.IsNullOrEmpty(filename))
+            if (!String.IsNullOrEmpty(sqliteFilename))
             {
-                db = new DatabaseClient(new DatabaseWrapper.Core.DatabaseSettings(filename));
+                _ORM = new WatsonORM(new DatabaseSettings(sqliteFilename));
             }
             else
             {
-                DbTypeEnum dbType = (DatabaseWrapper.Core.DbTypeEnum)Enum.Parse(typeof(DbTypeEnum), Inputty.GetString("Database type     :", "Mysql", false));
-                db = new DatabaseClient(
-                    new DatabaseWrapper.Core.DatabaseSettings(
-                        dbType,
-                         Inputty.GetString("Hostname          :", "rosetta-stone-database.cdgksvvrmx4w.us-west-1.rds.amazonaws.com", false),
-                        Inputty.GetInteger("Port              :", 3306, true, false),
-                         Inputty.GetString("User              :", "admin", false),
-                         Inputty.GetString("Password          :", "password", false),
-                         Inputty.GetString("Database name     :", "rosettastone", false)
-                        ));
+                DbTypeEnum dbType = (DatabaseWrapper.Core.DbTypeEnum)Enum.Parse(typeof(DbTypeEnum), Inputty.GetString("Database type      :", "Mysql", false));
+                DatabaseWrapper.Core.DatabaseSettings settings = new DatabaseWrapper.Core.DatabaseSettings(
+                    dbType,
+                    Inputty.GetString("Hostname          :", "rosetta-stone-database.cdgksvvrmx4w.us-west-1.rds.amazonaws.com", false),
+                    Inputty.GetInteger("Port              :", 3306, true, false),
+                    Inputty.GetString("User              :", "admin", false),
+                    Inputty.GetString("Password          :", "password", false),
+                    Inputty.GetString("Database name     :", "rosettastone", false)
+                    );
+
+                _ORM = new WatsonORM(settings);
             }
 
-            string vendorTable =  Inputty.GetString("Vendor table      :", "vendors", false);
-            string vendorColumn = Inputty.GetString("Vendor key column :", "key", false);
-            string codecTable =   Inputty.GetString("CODEC table       :", "codecs", false);
-            string codecColumn =  Inputty.GetString("CODEC key column  :", "key", false);
-
-            Func<List<string>> retrieveVendorKeys = () =>
-            {
-                string vendorQuery = "SELECT * FROM " + vendorTable;
-                DataTable dt = db.Query(vendorQuery);
-                List<string> ret = new List<string>();
-                if (dt != null && dt.Rows.Count > 0)
-                {
-                    ret = dt.AsEnumerable().Select(r => r.Field<string>(vendorColumn)).ToList();
+            _ORM.InitializeDatabase();
+            _ORM.InitializeTables(new List<Type> 
+                { 
+                    typeof(CodecMetadata),
+                    typeof(VendorMetadata)
                 }
-                return ret;
-            };
+            );
+        }
 
-            Func<List<string>> retrieveCodecKeys = () =>
-            {
-                string codecQuery = "SELECT * FROM " + codecTable;
-                DataTable dt = db.Query(codecQuery);
-                List<string> ret = new List<string>();
-                if (dt != null && dt.Rows.Count > 0)
-                {
-                    ret = dt.AsEnumerable().Select(r => r.Field<string>(codecColumn)).ToList();
-                }
-                return ret;
-            };
+        private static void InitializeRecordsManager()
+        {
+            _Records = new RecordManager();
 
-            _Records.RetrieveVendorKeys(retrieveVendorKeys);
-            Console.WriteLine("Retrieved " + _Records.VendorKeys.Count + " vendor keys");
-            _Records.RetrieveCodecKeys(retrieveCodecKeys);
-            Console.WriteLine("Retrieved " + _Records.CodecKeys.Count + " codec keys");
         }
 
         private static (string, int) Generate(
@@ -211,23 +211,27 @@ namespace Test
 
                     if (!String.IsNullOrEmpty(ret.Item1))
                     {
-                        if (_Validate)
-                        {
-                            isValid = _Validator.Validate(ret.Item1, _Records.VendorKeys, _MinimumEditDistance);
-                        }
-                        else
-                        {
-                            isValid = true;
-                        }
+                        isValid = _Validator.Validate(ret.Item1, _Records.VendorKeys, _MinimumEditDistance);
                     }
 
                     ts.End = DateTime.UtcNow;
                 }
 
-                if (!String.IsNullOrEmpty(ret.Item1))
+                if (isValid && !String.IsNullOrEmpty(ret.Item1))
                 {
                     generated.Add(ret.Item1);
                     Console.WriteLine(generated.Count + ": " + ret.Item1 + " (" + ret.Item2 + " attempts, " + ts.TotalMs + "ms)");
+
+                    VendorMetadata vendor = new VendorMetadata
+                    {
+                        Key = ret.Item1,
+                        Name = "Unassigned Vendor ID",
+                        ContactInformation = "Unassigned Vendor ID"
+                    };
+
+                    vendor = _ORM.Insert<VendorMetadata>(vendor);
+
+                    _Records.RetrieveVendorKeys(_RetrieveVendors);
 
                     if (count > 0 && generated.Count >= count)
                     {
@@ -284,23 +288,28 @@ namespace Test
 
                     if (!String.IsNullOrEmpty(ret.Item1))
                     {
-                        if (_Validate)
-                        {
-                            isValid = _Validator.Validate(ret.Item1, _Records.CodecKeys, _MinimumEditDistance);
-                        }
-                        else
-                        {
-                            isValid = true;
-                        }
+                        isValid = _Validator.Validate(ret.Item1, _Records.CodecKeys, _MinimumEditDistance);
                     }
 
                     ts.End = DateTime.UtcNow;
                 }
 
-                if (!String.IsNullOrEmpty(ret.Item1))
+                if (isValid && !String.IsNullOrEmpty(ret.Item1))
                 {
                     generated.Add(ret.Item1);
                     Console.WriteLine(generated.Count + ": " + ret.Item1 + " (" + ret.Item2 + " attempts, " + ts.TotalMs + "ms)");
+
+                    CodecMetadata codec = new CodecMetadata
+                    {
+                        Key = ret.Item1,
+                        Name = "Unassigned CODEC ID",
+                        Version = "Unassigned CODEC ID",
+                        Uri = "Unassigned CODEC ID"
+                    };
+
+                    codec = _ORM.Insert<CodecMetadata>(codec);
+
+                    _Records.RetrieveCodecKeys(_RetrieveVendors);
 
                     if (count > 0 && generated.Count >= count)
                     {
