@@ -25,6 +25,9 @@ namespace Generator
         [Column("contactinfo", false, DataTypes.Nvarchar, 256, false)]
         public string ContactInformation { get; set; } = string.Empty;
 
+        [Column("isassigned", false, DataTypes.Boolean, false)]
+        public bool IsAssigned { get; set; } = false;
+
         [Column("createdutc", false, DataTypes.DateTime, false)]
         public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
 

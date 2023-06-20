@@ -119,7 +119,7 @@ namespace Test
             }
             else
             {
-                DbTypeEnum dbType = (DatabaseWrapper.Core.DbTypeEnum)Enum.Parse(typeof(DbTypeEnum), Inputty.GetString("Database type      :", "Mysql", false));
+                DbTypeEnum dbType = (DatabaseWrapper.Core.DbTypeEnum)Enum.Parse(typeof(DbTypeEnum), Inputty.GetString("Database type     :", "Mysql", false));
                 DatabaseWrapper.Core.DatabaseSettings settings = new DatabaseWrapper.Core.DatabaseSettings(
                     dbType,
                     Inputty.GetString("Hostname          :", "rosetta-stone-database.cdgksvvrmx4w.us-west-1.rds.amazonaws.com", false),
